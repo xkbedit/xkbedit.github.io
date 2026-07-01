@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "browserify src/index.js -o public/bundle.js",
-    "dev": "browserify src/index.js -d -o public/bundle.js -w"
+    "build": "esbuild src/index.js --bundle --outfile=public/bundle.js",
+    "dev": "esbuild src/index.js --bundle --outfile=public/bundle.js --sourcemap --watch"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "browserify": "^17.0.0"
+    "esbuild": "^0.25.5"
   }
 }
