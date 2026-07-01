@@ -44,7 +44,7 @@ const getKeyDisplay = ({ key, layout, remaps, activeLayer }) => {
     return {
       display: defaultSymbol,
       isPlaceholder: true,
-      shrink: false
+      shrink: defaultSymbol.length > 3
     };
   }
 
@@ -74,7 +74,15 @@ const Keyboard = ({ layout, remaps, activeKey, activeLayer, onKeyClick }) =>
         e(
           'div',
           { className: 'key-row', key: rowIdx },
-          row.map(key => {
+          row.map((key, keyIdx) => {
+            if (key.type === 'spacer') {
+              return e('div', {
+                key: key.code || `spacer-${rowIdx}-${keyIdx}`,
+                className: 'key-spacer',
+                style: getKeyStyle(key)
+              });
+            }
+
             const remapValue = remaps[getWaywallKey(key)];
             const keyDisplay = getKeyDisplay({ key, layout, remaps, activeLayer });
 

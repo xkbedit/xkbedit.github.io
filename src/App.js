@@ -23,12 +23,53 @@ const App = () => {
   const [activeLayer, setActiveLayer] = React.useState(0);
   const [importStatus, setImportStatus] = React.useState('');
   const [keyEditor, setKeyEditor] = React.useState(null);
+  const [removeUsedDefaults, setRemoveUsedDefaults] = React.useState(true);
   const fileInputRef = React.useRef(null);
   const xkbFileInputRef = React.useRef(null);
   const remapsFileInputRef = React.useRef(null);
+  const editorDragRef = React.useRef(null);
 
-  const xkbSnippet = React.useMemo(() => createXkbSnippet(layout), [layout]);
+  const xkbSnippet = React.useMemo(
+    () => createXkbSnippet(layout, { removeUsedDefaults }),
+    [layout, removeUsedDefaults]
+  );
   const remapsLua = React.useMemo(() => createRemapsLua(remaps), [remaps]);
+
+  React.useEffect(() => {
+    const handleKeyDown = event => {
+      if (event.key !== 'Escape') return;
+      editorDragRef.current = null;
+      setKeyEditor(null);
+      setActiveKey(null);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    const handlePointerMove = event => {
+      if (!editorDragRef.current) return;
+
+      const nextX = Math.max(0, Math.round(event.clientX + window.scrollX - editorDragRef.current.offsetX));
+      const nextY = Math.max(0, Math.round(event.clientY + window.scrollY - editorDragRef.current.offsetY));
+      setKeyEditor(current => current ? { ...current, x: nextX, y: nextY } : current);
+    };
+
+    const stopDrag = () => {
+      editorDragRef.current = null;
+    };
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', stopDrag);
+    document.addEventListener('pointercancel', stopDrag);
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', stopDrag);
+      document.removeEventListener('pointercancel', stopDrag);
+    };
+  }, []);
 
   const getLayerValue = (key, layer) => {
     const storedLevels = layout[key.code];
@@ -93,6 +134,17 @@ const App = () => {
       : current
     );
     setActiveKey(keyEditor.pickTarget === 'full' ? keyEditor.key.code : keyEditor.pickForCode);
+  };
+
+  const startEditorDrag = event => {
+    if (!keyEditor || keyEditor.pickTarget || event.button !== 0) return;
+    if (event.target.closest('button, input, textarea')) return;
+
+    event.preventDefault();
+    editorDragRef.current = {
+      offsetX: event.clientX + window.scrollX - keyEditor.x,
+      offsetY: event.clientY + window.scrollY - keyEditor.y
+    };
   };
 
   const setKeyEditorMode = mode => {
@@ -364,6 +416,7 @@ const App = () => {
         getWaywallKey,
         setEditor: setKeyEditor,
         setMode: setKeyEditorMode,
+        startEditorDrag,
         startFullRebindPick,
         startTriggerPick,
         updateFullRebind,
@@ -382,6 +435,16 @@ const App = () => {
       e(
         'div',
         { className: 'download-actions' },
+        e(
+          'label',
+          { className: 'option-toggle' },
+          e('input', {
+            type: 'checkbox',
+            checked: removeUsedDefaults,
+            onChange: event => setRemoveUsedDefaults(event.target.checked)
+          }),
+          e('span', null, 'Remove used defaults')
+        ),
         e(
           'button',
           {

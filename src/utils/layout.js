@@ -30,6 +30,47 @@ const SYMBOL_TO_SHIFT_SYMBOL = {
   grave: 'asciitilde'
 };
 
+const DEFAULT_KEY_SYMBOLS = {
+  ESC: 'Escape',
+  FK01: 'F1',
+  FK02: 'F2',
+  FK03: 'F3',
+  FK04: 'F4',
+  FK05: 'F5',
+  FK06: 'F6',
+  FK07: 'F7',
+  FK08: 'F8',
+  FK09: 'F9',
+  FK10: 'F10',
+  FK11: 'F11',
+  FK12: 'F12',
+  PRSC: 'Print',
+  SCLK: 'Scroll_Lock',
+  PAUS: 'Pause',
+  BKSP: 'BackSpace',
+  TAB: 'Tab',
+  RTRN: 'Return',
+  CAPS: 'Caps_Lock',
+  LFSH: 'Shift_L',
+  RTSH: 'Shift_R',
+  LCTL: 'Control_L',
+  RCTL: 'Control_R',
+  LWIN: 'Super_L',
+  RWIN: 'Menu',
+  LALT: 'Alt_L',
+  RALT: 'ISO_Level3_Shift',
+  INS: 'Insert',
+  HOME: 'Home',
+  PGUP: 'Prior',
+  DELE: 'Delete',
+  END: 'End',
+  PGDN: 'Next',
+  UP: 'Up',
+  LEFT: 'Left',
+  DOWN: 'Down',
+  RGHT: 'Right'
+};
+
 const getShiftedSymbol = symbol => {
   if (!symbol) return symbol;
   if (/^[a-z]$/.test(symbol)) return symbol.toUpperCase();
@@ -37,6 +78,10 @@ const getShiftedSymbol = symbol => {
 };
 
 const getDefaultSymbol = (key, layer) => {
+  if (layer === 0 && DEFAULT_KEY_SYMBOLS[key.code]) {
+    return DEFAULT_KEY_SYMBOLS[key.code];
+  }
+
   if (key.code === 'SPCE' && layer === 0) return 'space';
 
   if (layer === 1 && US_SHIFT_SYMBOLS[key.code]) {

@@ -36,7 +36,7 @@ textarea {
 }
 
 .app-shell {
-  width: min(100%, 960px);
+  width: min(100%, 1200px);
   min-height: 100vh;
   margin: 0 auto;
   padding: 48px 24px 64px;
@@ -205,6 +205,14 @@ button {
   gap: var(--keyboard-gap);
 }
 
+.key-spacer {
+  width: var(--key-size);
+  height: var(--key-size);
+  flex: 0 0 var(--key-size);
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .key {
   position: relative;
   display: flex;
@@ -274,6 +282,8 @@ button {
 
 .key-editor-popover--picking {
   border-color: var(--accent);
+  opacity: 0.42;
+  pointer-events: none;
 }
 
 .key-editor-header {
@@ -283,6 +293,9 @@ button {
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
 }
 
 .key-editor-title,
@@ -317,6 +330,7 @@ button {
 .key-editor-close {
   padding: 0;
   color: var(--muted);
+  cursor: pointer;
 }
 
 .key-editor-close:hover,
@@ -437,6 +451,22 @@ button {
 
 .download-actions {
   justify-content: flex-start;
+}
+
+.option-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.option-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .snippet {

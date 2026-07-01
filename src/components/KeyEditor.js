@@ -13,6 +13,7 @@ const KeyEditor = ({
   getWaywallKey,
   setEditor,
   setMode,
+  startEditorDrag,
   startFullRebindPick,
   startTriggerPick,
   updateFullRebind,
@@ -31,7 +32,7 @@ const KeyEditor = ({
     },
     e(
       'div',
-      { className: 'key-editor-header' },
+      { className: 'key-editor-header', onPointerDown: startEditorDrag },
       e(
         'div',
         null,

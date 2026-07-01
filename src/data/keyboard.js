@@ -12,7 +12,10 @@ const KEY_ROWS = [
     { code: 'FK09', label: 'F9' },
     { code: 'FK10', label: 'F10' },
     { code: 'FK11', label: 'F11' },
-    { code: 'FK12', label: 'F12' }
+    { code: 'FK12', label: 'F12', afterGap: 0.5 },
+    { code: 'PRSC', label: 'PrtSc', legend: 'Prt' },
+    { code: 'SCLK', label: 'Scroll', legend: 'Scr' },
+    { code: 'PAUS', label: 'Pause', legend: 'Paus' }
   ],
   [
     { code: 'TLDE', label: '`' },
@@ -28,7 +31,10 @@ const KEY_ROWS = [
     { code: 'AE10', label: '0' },
     { code: 'AE11', label: '-' },
     { code: 'AE12', label: '=' },
-    { code: 'BKSP', label: 'Backspace', span: 2 }
+    { code: 'BKSP', label: 'Backspace', span: 2, afterGap: 0.5 },
+    { code: 'INS', label: 'Ins' },
+    { code: 'HOME', label: 'Home' },
+    { code: 'PGUP', label: 'PgUp' }
   ],
   [
     { code: 'TAB', label: 'Tab', span: 1.5 },
@@ -44,7 +50,10 @@ const KEY_ROWS = [
     { code: 'AD10', label: 'P' },
     { code: 'AD11', label: '[' },
     { code: 'AD12', label: ']' },
-    { code: 'BKSL', label: '\\', span: 1.5 }
+    { code: 'BKSL', label: '\\', span: 1.5, afterGap: 0.5 },
+    { code: 'DELE', label: 'Del' },
+    { code: 'END', label: 'End' },
+    { code: 'PGDN', label: 'PgDn' }
   ],
   [
     { code: 'CAPS', label: 'Caps', span: 1.75 },
@@ -59,7 +68,8 @@ const KEY_ROWS = [
     { code: 'AC09', label: 'L' },
     { code: 'AC10', label: ';' },
     { code: 'AC11', label: '\'' },
-    { code: 'RTRN', label: 'Enter', span: 2.25 }
+    { code: 'RTRN', label: 'Enter', span: 2.25, afterGap: 0.5 },
+    { type: 'spacer', code: 'NAVSP1', span: 3 }
   ],
   [
     { code: 'LFSH', label: 'Shift', span: 2.25 },
@@ -73,7 +83,10 @@ const KEY_ROWS = [
     { code: 'AB08', label: ',' },
     { code: 'AB09', label: '.' },
     { code: 'AB10', label: '/' },
-    { code: 'RTSH', label: 'Shift', span: 2.75 }
+    { code: 'RTSH', label: 'Shift', span: 2.75, afterGap: 0.5 },
+    { type: 'spacer', code: 'ARSP1' },
+    { code: 'UP', label: 'Up', legend: 'Up' },
+    { type: 'spacer', code: 'ARSP2' }
   ],
   [
     { code: 'LCTL', label: 'Ctrl', span: 1.25 },
@@ -83,7 +96,10 @@ const KEY_ROWS = [
     { code: 'RALT', label: 'Alt', span: 1.25 },
     { code: 'RWIN', label: 'Menu', span: 1.25 },
     { code: 'I255', label: 'Fn', span: 1.25 },
-    { code: 'RCTL', label: 'Ctrl', span: 1.25 }
+    { code: 'RCTL', label: 'Ctrl', span: 1.25, afterGap: 0.5 },
+    { code: 'LEFT', label: 'Left', legend: 'Left' },
+    { code: 'DOWN', label: 'Down', legend: 'Down' },
+    { code: 'RGHT', label: 'Right', legend: 'Right' }
   ]
 ];
 
