@@ -5,6 +5,44 @@ const buildInitialLayout = () => ({});
 
 const hasExplicitLevel = value => value !== undefined && value !== null;
 
+const getSymbolDedupeKey = symbol => {
+  if (!symbol) return null;
+  const trimmed = symbol.trim();
+  if (!trimmed) return null;
+  return /^[A-Za-z]$/.test(trimmed) ? trimmed.toLowerCase() : trimmed;
+};
+
+const collectExplicitSymbols = layout => {
+  const symbols = new Map();
+
+  Object.entries(layout).forEach(([code, levels]) => {
+    if (!levels) return;
+
+    levels.forEach(value => {
+      if (!hasExplicitLevel(value)) return;
+
+      const key = getSymbolDedupeKey(value);
+      if (!key) return;
+
+      if (!symbols.has(key)) {
+        symbols.set(key, new Set());
+      }
+      symbols.get(key).add(code);
+    });
+  });
+
+  return symbols;
+};
+
+const shouldRemoveDefault = (key, value, explicitSymbols, removeUsedDefaults) => {
+  if (!removeUsedDefaults) return false;
+
+  const dedupeKey = getSymbolDedupeKey(value);
+  if (!dedupeKey || !explicitSymbols.has(dedupeKey)) return false;
+
+  return Array.from(explicitSymbols.get(dedupeKey)).some(code => code !== key.code);
+};
+
 const SYMBOL_TO_SHIFT_SYMBOL = {
   '`': '~',
   '1': '!',
@@ -121,9 +159,12 @@ const getWaywallKey = key => XKB_CODE_TO_WAYWALL_KEY[key.code] || key.code;
 
 module.exports = {
   buildInitialLayout,
+  collectExplicitSymbols,
   getDefaultSymbol,
   getKeyStyle,
   getShiftedSymbol,
+  getSymbolDedupeKey,
   getWaywallKey,
-  hasExplicitLevel
+  hasExplicitLevel,
+  shouldRemoveDefault
 };

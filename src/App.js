@@ -405,7 +405,7 @@ const App = () => {
         e('span', { className: 'layer-indicator' }, LAYERS[activeLayer].label)
       ),
       e(LayerSwitcher, { activeLayer, onChange: setActiveLayer }),
-      e(Keyboard, { layout, remaps, activeKey, activeLayer, onKeyClick: handleKeyClick }),
+      e(Keyboard, { layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick: handleKeyClick }),
       e(KeyEditor, {
         activeLayer,
         clearTrigger,

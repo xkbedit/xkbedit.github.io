@@ -1,15 +1,17 @@
 const React = require('react');
 const { KEY_ROWS } = require('../data/keyboard');
 const {
+  collectExplicitSymbols,
   getDefaultSymbol,
   getKeyStyle,
   getWaywallKey,
-  hasExplicitLevel
+  hasExplicitLevel,
+  shouldRemoveDefault
 } = require('../utils/layout');
 
 const e = React.createElement;
 
-const getKeyDisplay = ({ key, layout, remaps, activeLayer }) => {
+const getKeyDisplay = ({ key, layout, remaps, activeLayer, explicitSymbols, removeUsedDefaults }) => {
   const storedLevels = layout[key.code];
   const legend = key.legend || key.label;
   const remapValue = remaps[getWaywallKey(key)];
@@ -41,6 +43,14 @@ const getKeyDisplay = ({ key, layout, remaps, activeLayer }) => {
 
   const defaultSymbol = getDefaultSymbol(key, activeLayer);
   if (defaultSymbol !== undefined) {
+    if (shouldRemoveDefault(key, defaultSymbol, explicitSymbols, removeUsedDefaults)) {
+      return {
+        display: '',
+        isPlaceholder: false,
+        shrink: false
+      };
+    }
+
     return {
       display: defaultSymbol,
       isPlaceholder: true,
@@ -63,8 +73,10 @@ const getKeyDisplay = ({ key, layout, remaps, activeLayer }) => {
   };
 };
 
-const Keyboard = ({ layout, remaps, activeKey, activeLayer, onKeyClick }) =>
-  e(
+const Keyboard = ({ layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick }) => {
+  const explicitSymbols = React.useMemo(() => collectExplicitSymbols(layout), [layout]);
+
+  return e(
     'div',
     { className: 'keyboard-wrapper' },
     e(
@@ -84,13 +96,21 @@ const Keyboard = ({ layout, remaps, activeKey, activeLayer, onKeyClick }) =>
             }
 
             const remapValue = remaps[getWaywallKey(key)];
-            const keyDisplay = getKeyDisplay({ key, layout, remaps, activeLayer });
+            const triggerValue = triggers[key.code];
+            const keyDisplay = getKeyDisplay({
+              key,
+              layout,
+              remaps,
+              activeLayer,
+              explicitSymbols,
+              removeUsedDefaults
+            });
 
             return e(
               'button',
               {
                 key: key.code,
-                className: `key${activeKey === key.code ? ' key--active' : ''}${remapValue ? ' key--remapped' : ''}`,
+                className: `key${activeKey === key.code ? ' key--active' : ''}${remapValue ? ' key--remapped' : ''}${triggerValue ? ' key--triggered' : ''}`,
                 onClick: event => onKeyClick(key, event),
                 style: getKeyStyle(key)
               },
@@ -102,6 +122,14 @@ const Keyboard = ({ layout, remaps, activeKey, activeLayer, onKeyClick }) =>
                 },
                 keyDisplay.display
               ),
+              triggerValue && e(
+                'span',
+                {
+                  className: `key-trigger${triggerValue.length > 6 ? ' key-trigger--small' : ''}`,
+                  title: `Trigger: ${triggerValue}`
+                },
+                triggerValue
+              ),
               e('span', { className: 'key-code' }, key.code)
             );
           })
@@ -109,5 +137,6 @@ const Keyboard = ({ layout, remaps, activeKey, activeLayer, onKeyClick }) =>
       )
     )
   );
+};
 
 module.exports = Keyboard;
