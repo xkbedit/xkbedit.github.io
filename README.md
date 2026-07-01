@@ -1,4 +1,4 @@
-# XKB Layout Painter
+# xkbedit
 
 A visual, web-based tool for designing custom XKB (X Keyboard Extension) key symbol layouts for Linux. 
 
