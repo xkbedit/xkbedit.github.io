@@ -423,7 +423,6 @@ const App = () => {
       e('input', {
         ref: xkbFileInputRef,
         type: 'file',
-        accept: '.xkb,.symbols,text/plain',
         className: 'visually-hidden',
         onChange: handleXkbSymbolsFile
       }),
