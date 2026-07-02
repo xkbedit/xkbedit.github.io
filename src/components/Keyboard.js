@@ -1,9 +1,9 @@
 const React = require('react');
-const { KEY_ROWS } = require('../data/keyboard');
 const {
   collectExplicitSymbols,
   getDefaultSymbol,
   getKeyStyle,
+  getRemapValue,
   getWaywallKey,
   hasExplicitLevel,
   shouldRemoveDefault
@@ -14,7 +14,7 @@ const e = React.createElement;
 const getKeyDisplay = ({ key, layout, remaps, activeLayer, explicitSymbols, removeUsedDefaults }) => {
   const storedLevels = layout[key.code];
   const legend = key.legend || key.label;
-  const remapValue = remaps[getWaywallKey(key)];
+  const remapValue = getRemapValue(remaps, key);
   const storedVal = storedLevels ? storedLevels[activeLayer] : undefined;
 
   if (remapValue) {
@@ -73,7 +73,7 @@ const getKeyDisplay = ({ key, layout, remaps, activeLayer, explicitSymbols, remo
   };
 };
 
-const Keyboard = ({ layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick }) => {
+const Keyboard = ({ keyRows, layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick }) => {
   const explicitSymbols = React.useMemo(() => collectExplicitSymbols(layout), [layout]);
 
   return e(
@@ -82,7 +82,7 @@ const Keyboard = ({ layout, remaps, triggers, activeKey, activeLayer, removeUsed
     e(
       'div',
       { className: 'keyboard' },
-      KEY_ROWS.map((row, rowIdx) =>
+      keyRows.map((row, rowIdx) =>
         e(
           'div',
           { className: 'key-row', key: rowIdx },
@@ -95,7 +95,7 @@ const Keyboard = ({ layout, remaps, triggers, activeKey, activeLayer, removeUsed
               });
             }
 
-            const remapValue = remaps[getWaywallKey(key)];
+            const remapValue = getRemapValue(remaps, key);
             const triggerValue = triggers[key.code];
             const keyDisplay = getKeyDisplay({
               key,

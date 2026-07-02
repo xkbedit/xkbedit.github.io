@@ -1,15 +1,33 @@
+const { XKB_CODE_TO_WAYWALL_KEY } = require('../data/keyMaps');
+
 const escapeLuaString = value => String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
 const unescapeLuaString = value => value.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
 
-const createRemapsLua = remaps => {
+const getTriggerRemaps = triggers => {
+  const triggerRemaps = {};
+
+  Object.entries(triggers || {}).forEach(([targetCode, triggerKey]) => {
+    const targetKey = XKB_CODE_TO_WAYWALL_KEY[targetCode] || targetCode;
+    if (!triggerKey || triggerKey === targetKey) return;
+    triggerRemaps[triggerKey] = targetKey;
+  });
+
+  return triggerRemaps;
+};
+
+const createRemapsLua = (remaps, triggers = {}) => {
+  const exportedRemaps = {
+    ...remaps,
+    ...getTriggerRemaps(triggers)
+  };
   const lines = [
     'return {',
     '    remapped_kb = {'
   ];
 
-  Object.keys(remaps).sort().forEach(fromKey => {
-    lines.push(`        ["${escapeLuaString(fromKey)}"] = "${escapeLuaString(remaps[fromKey])}",`);
+  Object.keys(exportedRemaps).sort().forEach(fromKey => {
+    lines.push(`        ["${escapeLuaString(fromKey)}"] = "${escapeLuaString(exportedRemaps[fromKey])}",`);
   });
 
   lines.push(

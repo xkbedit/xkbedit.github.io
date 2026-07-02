@@ -2,11 +2,14 @@ const React = require('react');
 const Keyboard = require('./components/Keyboard');
 const KeyEditor = require('./components/KeyEditor');
 const LayerSwitcher = require('./components/LayerSwitcher');
-const { LAYERS } = require('./data/keyboard');
+const { DEFAULT_LAYOUT_ID, getKeyboardRows, KEY_LAYOUTS, LAYERS } = require('./data/keyboard');
 const {
   buildInitialLayout,
+  clearRemapForKey,
   getDefaultSymbol,
+  getRemapValue,
   getWaywallKey,
+  getXkbCodeForWaywallKey,
   hasExplicitLevel
 } = require('./utils/layout');
 const { createRemapsLua, parseRemapsLua } = require('./utils/remapsLua');
@@ -21,19 +24,22 @@ const App = () => {
   const [triggers, setTriggers] = React.useState({});
   const [activeKey, setActiveKey] = React.useState(null);
   const [activeLayer, setActiveLayer] = React.useState(0);
+  const [keyboardLayout, setKeyboardLayout] = React.useState(DEFAULT_LAYOUT_ID);
   const [importStatus, setImportStatus] = React.useState('');
   const [keyEditor, setKeyEditor] = React.useState(null);
   const [removeUsedDefaults, setRemoveUsedDefaults] = React.useState(true);
+  const [showToolscreenHelp, setShowToolscreenHelp] = React.useState(false);
   const fileInputRef = React.useRef(null);
   const xkbFileInputRef = React.useRef(null);
   const remapsFileInputRef = React.useRef(null);
   const editorDragRef = React.useRef(null);
 
+  const keyRows = React.useMemo(() => getKeyboardRows(keyboardLayout), [keyboardLayout]);
   const xkbSnippet = React.useMemo(
-    () => createXkbSnippet(layout, { removeUsedDefaults }),
-    [layout, removeUsedDefaults]
+    () => createXkbSnippet(layout, { keyRows, removeUsedDefaults }),
+    [keyRows, layout, removeUsedDefaults]
   );
-  const remapsLua = React.useMemo(() => createRemapsLua(remaps), [remaps]);
+  const remapsLua = React.useMemo(() => createRemapsLua(remaps, triggers), [remaps, triggers]);
 
   React.useEffect(() => {
     const handleKeyDown = event => {
@@ -85,7 +91,6 @@ const App = () => {
 
   const handleKeyClick = (key, event) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const waywallKey = getWaywallKey(key);
 
     if (keyEditor && keyEditor.pickTarget) {
       handlePickedKey(key);
@@ -95,7 +100,7 @@ const App = () => {
     setActiveKey(key.code);
     setKeyEditor({
       key,
-      mode: remaps[waywallKey] ? 'full' : 'split',
+      mode: getRemapValue(remaps, key) ? 'full' : 'split',
       x: Math.round(rect.left + rect.width / 2 + window.scrollX),
       y: Math.round(rect.top + rect.height / 2 + window.scrollY)
     });
@@ -119,7 +124,7 @@ const App = () => {
         return copy;
       });
       setRemaps(prev => ({
-        ...prev,
+        ...clearRemapForKey(prev, keyEditor.key),
         [sourceKey]: pickedKey
       }));
     }
@@ -149,11 +154,7 @@ const App = () => {
 
   const setKeyEditorMode = mode => {
     if (keyEditor && mode === 'split') {
-      setRemaps(prev => {
-        const copy = { ...prev };
-        delete copy[getWaywallKey(keyEditor.key)];
-        return copy;
-      });
+      setRemaps(prev => clearRemapForKey(prev, keyEditor.key));
     }
 
     if (keyEditor && mode === 'full') {
@@ -170,11 +171,7 @@ const App = () => {
   const updateSplitTypes = value => {
     if (!keyEditor) return;
 
-    setRemaps(prev => {
-      const copy = { ...prev };
-      delete copy[getWaywallKey(keyEditor.key)];
-      return copy;
-    });
+    setRemaps(prev => clearRemapForKey(prev, keyEditor.key));
 
     setLayout(prev => {
       const copy = { ...prev };
@@ -228,7 +225,7 @@ const App = () => {
     });
   };
 
-  const getFullRebindValue = key => remaps[getWaywallKey(key)] || '';
+  const getFullRebindValue = key => getRemapValue(remaps, key);
 
   const updateFullRebind = value => {
     if (!keyEditor) return;
@@ -241,7 +238,7 @@ const App = () => {
 
     setRemaps(prev => {
       const sourceKey = getWaywallKey(keyEditor.key);
-      const copy = { ...prev };
+      const copy = clearRemapForKey(prev, keyEditor.key);
 
       if (value.trim()) {
         copy[sourceKey] = value.trim().toUpperCase();
@@ -262,6 +259,28 @@ const App = () => {
       setKeyEditor(null);
       setImportStatus('');
     }
+  };
+
+  const splitRemapsForLayout = (importedRemaps, typeLayout) => {
+    const fullRemaps = {};
+    const splitTriggers = {};
+
+    Object.entries(importedRemaps).forEach(([fromKey, toKey]) => {
+      const targetCode = getXkbCodeForWaywallKey(toKey);
+
+      if (targetCode && typeLayout[targetCode]) {
+        splitTriggers[targetCode] = fromKey;
+      } else {
+        fullRemaps[fromKey] = toKey;
+      }
+    });
+
+    return { fullRemaps, splitTriggers };
+  };
+
+  const openToolscreenPicker = () => {
+    setShowToolscreenHelp(false);
+    fileInputRef.current.click();
   };
 
   const handleToolscreenFile = async event => {
@@ -308,11 +327,24 @@ const App = () => {
         return;
       }
 
+      const converted = splitRemapsForLayout(remaps, result.layout);
+
       setLayout(result.layout);
+      setRemaps(converted.fullRemaps);
+      setTriggers(prev => {
+        return {
+          ...prev,
+          ...converted.splitTriggers
+        };
+      });
       setActiveLayer(0);
       setActiveKey(null);
       setKeyEditor(null);
-      setImportStatus(`Imported ${result.importedCount} xkb_symbols keys from ${file.name}.`);
+      setImportStatus(
+        `Imported ${result.importedCount} xkb_symbols keys from ${file.name}${
+          Object.keys(converted.splitTriggers).length ? ` (${Object.keys(converted.splitTriggers).length} remaps converted to split triggers)` : ''
+        }.`
+      );
     } catch (error) {
       setImportStatus(`Could not import ${file.name}: ${error.message}`);
     }
@@ -332,10 +364,20 @@ const App = () => {
         return;
       }
 
-      setRemaps(result.remaps);
+      const converted = splitRemapsForLayout(result.remaps, layout);
+
+      setRemaps(converted.fullRemaps);
+      setTriggers(prev => ({
+        ...prev,
+        ...converted.splitTriggers
+      }));
       setActiveKey(null);
       setKeyEditor(null);
-      setImportStatus(`Imported ${result.importedCount} remaps from ${file.name}.`);
+      setImportStatus(
+        `Imported ${result.importedCount} remaps from ${file.name}${
+          Object.keys(converted.splitTriggers).length ? ` (${Object.keys(converted.splitTriggers).length} split triggers)` : ''
+        }.`
+      );
     } catch (error) {
       setImportStatus(`Could not import ${file.name}: ${error.message}`);
     }
@@ -366,7 +408,7 @@ const App = () => {
         'div',
         { className: 'header-actions' },
         e('span', { className: 'header-meta' }, '4 levels'),
-        e('button', { type: 'button', className: 'text-action text-action--strong', onClick: () => fileInputRef.current.click() }, 'Import Toolscreen'),
+        e('button', { type: 'button', className: 'text-action text-action--strong', onClick: () => setShowToolscreenHelp(true) }, 'Import Toolscreen'),
         e('button', { type: 'button', className: 'text-action text-action--strong', onClick: () => xkbFileInputRef.current.click() }, 'Import xkb_symbols'),
         e('button', { type: 'button', className: 'text-action text-action--strong', onClick: () => remapsFileInputRef.current.click() }, 'Import remaps.lua'),
         e('button', { type: 'button', className: 'text-action', onClick: resetLayout }, 'Reset')
@@ -395,6 +437,23 @@ const App = () => {
       e('p', { className: 'intro' }, 'Select a layer, click a key, and assign a symbol.'),
       importStatus && e('p', { className: 'import-status' }, importStatus)
     ),
+    showToolscreenHelp && e(
+      'div',
+      { className: 'modal-backdrop', onClick: () => setShowToolscreenHelp(false) },
+      e(
+        'div',
+        { className: 'import-modal', role: 'dialog', 'aria-modal': 'true', onClick: event => event.stopPropagation() },
+        e('h2', null, 'Import Toolscreen'),
+        e('p', null, 'In the file picker, open:'),
+        e('code', null, '%USERPROFILE%\\.config\\Toolscreen\\config.toml'),
+        e(
+          'div',
+          { className: 'modal-actions' },
+          e('button', { type: 'button', className: 'text-action', onClick: () => setShowToolscreenHelp(false) }, 'Cancel'),
+          e('button', { type: 'button', className: 'text-action text-action--strong', onClick: openToolscreenPicker }, 'Open picker')
+        )
+      )
+    ),
     e(
       'section',
       { className: 'content-section keyboard-section' },
@@ -404,8 +463,24 @@ const App = () => {
         e('h2', null, 'Keyboard'),
         e('span', { className: 'layer-indicator' }, LAYERS[activeLayer].label)
       ),
+      e(
+        'div',
+        { className: 'layout-tabs' },
+        KEY_LAYOUTS.map(item =>
+          e(
+            'button',
+            {
+              key: item.id,
+              type: 'button',
+              className: `layout-tab${keyboardLayout === item.id ? ' layout-tab--active' : ''}`,
+              onClick: () => setKeyboardLayout(item.id)
+            },
+            item.label
+          )
+        )
+      ),
       e(LayerSwitcher, { activeLayer, onChange: setActiveLayer }),
-      e(Keyboard, { layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick: handleKeyClick }),
+      e(Keyboard, { keyRows, layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick: handleKeyClick }),
       e(KeyEditor, {
         activeLayer,
         clearTrigger,

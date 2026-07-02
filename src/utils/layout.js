@@ -85,6 +85,7 @@ const DEFAULT_KEY_SYMBOLS = {
   PRSC: 'Print',
   SCLK: 'Scroll_Lock',
   PAUS: 'Pause',
+  HZTG: 'Zenkaku_Hankaku',
   BKSP: 'BackSpace',
   TAB: 'Tab',
   RTRN: 'Return',
@@ -97,6 +98,9 @@ const DEFAULT_KEY_SYMBOLS = {
   RWIN: 'Menu',
   LALT: 'Alt_L',
   RALT: 'ISO_Level3_Shift',
+  MUHE: 'Muhenkan',
+  HENK: 'Henkan_Mode',
+  HKTG: 'Hiragana_Katakana',
   INS: 'Insert',
   HOME: 'Home',
   PGUP: 'Prior',
@@ -106,7 +110,10 @@ const DEFAULT_KEY_SYMBOLS = {
   UP: 'Up',
   LEFT: 'Left',
   DOWN: 'Down',
-  RGHT: 'Right'
+  RGHT: 'Right',
+  LSGT: 'less',
+  AE13: 'yen',
+  AB11: 'backslash'
 };
 
 const getShiftedSymbol = symbol => {
@@ -157,14 +164,56 @@ const getKeyStyle = key => {
 
 const getWaywallKey = key => XKB_CODE_TO_WAYWALL_KEY[key.code] || key.code;
 
+const WAYWALL_KEY_ALIASES = {
+  RIGHTMETA: ['COMPOSE']
+};
+
+const WAYWALL_KEY_TO_XKB_CODE = Object.entries(XKB_CODE_TO_WAYWALL_KEY).reduce((lookup, [code, key]) => {
+  lookup[key] = code;
+  return lookup;
+}, {});
+
+Object.entries(WAYWALL_KEY_ALIASES).forEach(([primary, aliases]) => {
+  aliases.forEach(alias => {
+    if (WAYWALL_KEY_TO_XKB_CODE[primary]) {
+      WAYWALL_KEY_TO_XKB_CODE[alias] = WAYWALL_KEY_TO_XKB_CODE[primary];
+    }
+  });
+});
+
+const getWaywallKeyNames = key => {
+  const primary = getWaywallKey(key);
+  return [primary, ...(WAYWALL_KEY_ALIASES[primary] || [])];
+};
+
+const getXkbCodeForWaywallKey = key => WAYWALL_KEY_TO_XKB_CODE[key] || null;
+
+const getRemapValue = (remaps, key) => {
+  const names = getWaywallKeyNames(key);
+  const matchedName = names.find(name => remaps[name]);
+  return matchedName ? remaps[matchedName] : '';
+};
+
+const clearRemapForKey = (remaps, key) => {
+  const copy = { ...remaps };
+  getWaywallKeyNames(key).forEach(name => {
+    delete copy[name];
+  });
+  return copy;
+};
+
 module.exports = {
   buildInitialLayout,
+  clearRemapForKey,
   collectExplicitSymbols,
   getDefaultSymbol,
   getKeyStyle,
+  getRemapValue,
   getShiftedSymbol,
   getSymbolDedupeKey,
   getWaywallKey,
+  getWaywallKeyNames,
+  getXkbCodeForWaywallKey,
   hasExplicitLevel,
   shouldRemoveDefault
 };
