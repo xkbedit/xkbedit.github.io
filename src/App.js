@@ -17,18 +17,64 @@ const { parseToolscreenLayout } = require('./utils/toolscreen');
 const { createXkbSnippet, parseXkbSymbols } = require('./utils/xkbSymbols');
 
 const e = React.createElement;
+const STORAGE_KEY = 'xkbedit-state-v1';
+
+const isObject = value => value && typeof value === 'object' && !Array.isArray(value);
+
+const getStoredState = () => {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const storage = window.localStorage;
+    if (!storage) return {};
+
+    const rawState = storage.getItem(STORAGE_KEY);
+    if (!rawState) return {};
+
+    const parsed = JSON.parse(rawState);
+    if (!isObject(parsed)) return {};
+
+    return {
+      layout: isObject(parsed.layout) ? parsed.layout : undefined,
+      remaps: isObject(parsed.remaps) ? parsed.remaps : undefined,
+      triggers: isObject(parsed.triggers) ? parsed.triggers : undefined,
+      keyModes: isObject(parsed.keyModes) ? parsed.keyModes : undefined,
+      activeLayer: Number.isInteger(parsed.activeLayer) && parsed.activeLayer >= 0 && parsed.activeLayer < LAYERS.length
+        ? parsed.activeLayer
+        : undefined,
+      keyboardLayout: KEY_LAYOUTS.some(item => item.id === parsed.keyboardLayout) ? parsed.keyboardLayout : undefined,
+      removeUsedDefaults: typeof parsed.removeUsedDefaults === 'boolean' ? parsed.removeUsedDefaults : undefined
+    };
+  } catch (error) {
+    return {};
+  }
+};
+
+const saveStoredState = state => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const storage = window.localStorage;
+    if (!storage) return;
+
+    storage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // Ignore storage failures so private browsing/quota issues do not break editing.
+  }
+};
 
 const App = () => {
-  const [layout, setLayout] = React.useState(() => buildInitialLayout());
-  const [remaps, setRemaps] = React.useState({});
-  const [triggers, setTriggers] = React.useState({});
-  const [keyModes, setKeyModes] = React.useState({});
+  const storedState = React.useMemo(getStoredState, []);
+  const [layout, setLayout] = React.useState(() => storedState.layout || buildInitialLayout());
+  const [remaps, setRemaps] = React.useState(() => storedState.remaps || {});
+  const [triggers, setTriggers] = React.useState(() => storedState.triggers || {});
+  const [keyModes, setKeyModes] = React.useState(() => storedState.keyModes || {});
   const [activeKey, setActiveKey] = React.useState(null);
-  const [activeLayer, setActiveLayer] = React.useState(0);
-  const [keyboardLayout, setKeyboardLayout] = React.useState(DEFAULT_LAYOUT_ID);
+  const [activeLayer, setActiveLayer] = React.useState(() => storedState.activeLayer ?? 0);
+  const [keyboardLayout, setKeyboardLayout] = React.useState(() => storedState.keyboardLayout || DEFAULT_LAYOUT_ID);
   const [importStatus, setImportStatus] = React.useState('');
   const [keyEditor, setKeyEditor] = React.useState(null);
-  const [removeUsedDefaults, setRemoveUsedDefaults] = React.useState(true);
+  const [removeUsedDefaults, setRemoveUsedDefaults] = React.useState(() => storedState.removeUsedDefaults ?? true);
   const [showToolscreenHelp, setShowToolscreenHelp] = React.useState(false);
   const fileInputRef = React.useRef(null);
   const xkbFileInputRef = React.useRef(null);
@@ -87,6 +133,18 @@ const App = () => {
   );
 
   const remapsLua = React.useMemo(() => createRemapsLua(activeRemaps, activeTriggers), [activeRemaps, activeTriggers]);
+
+  React.useEffect(() => {
+    saveStoredState({
+      layout,
+      remaps,
+      triggers,
+      keyModes,
+      activeLayer,
+      keyboardLayout,
+      removeUsedDefaults
+    });
+  }, [activeLayer, keyboardLayout, keyModes, layout, remaps, removeUsedDefaults, triggers]);
 
   React.useEffect(() => {
     const handleKeyDown = event => {
