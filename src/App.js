@@ -22,6 +22,7 @@ const App = () => {
   const [layout, setLayout] = React.useState(() => buildInitialLayout());
   const [remaps, setRemaps] = React.useState({});
   const [triggers, setTriggers] = React.useState({});
+  const [keyModes, setKeyModes] = React.useState({});
   const [activeKey, setActiveKey] = React.useState(null);
   const [activeLayer, setActiveLayer] = React.useState(0);
   const [keyboardLayout, setKeyboardLayout] = React.useState(DEFAULT_LAYOUT_ID);
@@ -35,11 +36,57 @@ const App = () => {
   const editorDragRef = React.useRef(null);
 
   const keyRows = React.useMemo(() => getKeyboardRows(keyboardLayout), [keyboardLayout]);
+  const getKeyModeForCode = code => keyModes[code] || (getRemapValue(remaps, { code }) ? 'full' : 'split');
+  const getKeyMode = key => getKeyModeForCode(key.code);
+
+  const setKeyModeForCode = (code, mode) => {
+    setKeyModes(prev => ({
+      ...prev,
+      [code]: mode
+    }));
+  };
+
+  const activeRemaps = React.useMemo(() => {
+    const filtered = {};
+
+    Object.entries(remaps).forEach(([fromKey, toKey]) => {
+      const sourceCode = getXkbCodeForWaywallKey(fromKey);
+      if (sourceCode && getKeyModeForCode(sourceCode) === 'split') return;
+      filtered[fromKey] = toKey;
+    });
+
+    return filtered;
+  }, [keyModes, remaps]);
+
+  const activeTriggers = React.useMemo(() => {
+    const filtered = {};
+
+    Object.entries(triggers).forEach(([targetCode, triggerKey]) => {
+      if (getKeyModeForCode(targetCode) === 'full') return;
+      filtered[targetCode] = triggerKey;
+    });
+
+    return filtered;
+  }, [keyModes, remaps, triggers]);
+
+  const activeLayout = React.useMemo(() => {
+    const filtered = { ...layout };
+
+    Object.keys(filtered).forEach(code => {
+      if (getKeyModeForCode(code) === 'full') {
+        delete filtered[code];
+      }
+    });
+
+    return filtered;
+  }, [keyModes, layout, remaps]);
+
   const xkbSnippet = React.useMemo(
-    () => createXkbSnippet(layout, { keyRows, removeUsedDefaults }),
-    [keyRows, layout, removeUsedDefaults]
+    () => createXkbSnippet(activeLayout, { keyRows, removeUsedDefaults }),
+    [activeLayout, keyRows, removeUsedDefaults]
   );
-  const remapsLua = React.useMemo(() => createRemapsLua(remaps, triggers), [remaps, triggers]);
+
+  const remapsLua = React.useMemo(() => createRemapsLua(activeRemaps, activeTriggers), [activeRemaps, activeTriggers]);
 
   React.useEffect(() => {
     const handleKeyDown = event => {
@@ -100,7 +147,7 @@ const App = () => {
     setActiveKey(key.code);
     setKeyEditor({
       key,
-      mode: getRemapValue(remaps, key) ? 'full' : 'split',
+      mode: getKeyMode(key),
       x: Math.round(rect.left + rect.width / 2 + window.scrollX),
       y: Math.round(rect.top + rect.height / 2 + window.scrollY)
     });
@@ -110,6 +157,7 @@ const App = () => {
     const pickedKey = getWaywallKey(key);
 
     if (keyEditor.pickTarget === 'trigger') {
+      setKeyModeForCode(keyEditor.pickForCode, 'split');
       setTriggers(prev => ({
         ...prev,
         [keyEditor.pickForCode]: pickedKey
@@ -118,11 +166,7 @@ const App = () => {
 
     if (keyEditor.pickTarget === 'full') {
       const sourceKey = getWaywallKey(keyEditor.key);
-      setLayout(prev => {
-        const copy = { ...prev };
-        delete copy[keyEditor.key.code];
-        return copy;
-      });
+      setKeyModeForCode(keyEditor.key.code, 'full');
       setRemaps(prev => ({
         ...clearRemapForKey(prev, keyEditor.key),
         [sourceKey]: pickedKey
@@ -153,16 +197,26 @@ const App = () => {
   };
 
   const setKeyEditorMode = mode => {
-    if (keyEditor && mode === 'split') {
-      setRemaps(prev => clearRemapForKey(prev, keyEditor.key));
-    }
+    if (keyEditor) {
+      if (mode === 'full' && !getRemapValue(remaps, keyEditor.key) && triggers[keyEditor.key.code]) {
+        const sourceKey = getWaywallKey(keyEditor.key);
+        setRemaps(prev => ({
+          ...clearRemapForKey(prev, keyEditor.key),
+          [sourceKey]: triggers[keyEditor.key.code]
+        }));
+      }
 
-    if (keyEditor && mode === 'full') {
-      setLayout(prev => {
-        const copy = { ...prev };
-        delete copy[keyEditor.key.code];
-        return copy;
-      });
+      if (mode === 'split' && !triggers[keyEditor.key.code]) {
+        const fullRebindValue = getRemapValue(remaps, keyEditor.key);
+        if (fullRebindValue) {
+          setTriggers(prev => ({
+            ...prev,
+            [keyEditor.key.code]: fullRebindValue
+          }));
+        }
+      }
+
+      setKeyModeForCode(keyEditor.key.code, mode);
     }
 
     setKeyEditor(current => current ? { ...current, mode } : current);
@@ -171,7 +225,7 @@ const App = () => {
   const updateSplitTypes = value => {
     if (!keyEditor) return;
 
-    setRemaps(prev => clearRemapForKey(prev, keyEditor.key));
+    setKeyModeForCode(keyEditor.key.code, 'split');
 
     setLayout(prev => {
       const copy = { ...prev };
@@ -230,11 +284,7 @@ const App = () => {
   const updateFullRebind = value => {
     if (!keyEditor) return;
 
-    setLayout(prev => {
-      const copy = { ...prev };
-      delete copy[keyEditor.key.code];
-      return copy;
-    });
+    setKeyModeForCode(keyEditor.key.code, 'full');
 
     setRemaps(prev => {
       const sourceKey = getWaywallKey(keyEditor.key);
@@ -255,6 +305,7 @@ const App = () => {
       setLayout(buildInitialLayout());
       setRemaps({});
       setTriggers({});
+      setKeyModes({});
       setActiveKey(null);
       setKeyEditor(null);
       setImportStatus('');
@@ -300,6 +351,7 @@ const App = () => {
       setLayout(result.layout);
       setRemaps(result.remaps);
       setTriggers({});
+      setKeyModes({});
       setActiveKey(null);
       setKeyEditor(null);
       setActiveLayer(0);
@@ -337,6 +389,17 @@ const App = () => {
           ...converted.splitTriggers
         };
       });
+      setKeyModes(prev => {
+        const next = { ...prev };
+        Object.keys(converted.fullRemaps).forEach(fromKey => {
+          const code = getXkbCodeForWaywallKey(fromKey);
+          if (code) next[code] = 'full';
+        });
+        Object.keys(converted.splitTriggers).forEach(code => {
+          next[code] = 'split';
+        });
+        return next;
+      });
       setActiveLayer(0);
       setActiveKey(null);
       setKeyEditor(null);
@@ -371,6 +434,17 @@ const App = () => {
         ...prev,
         ...converted.splitTriggers
       }));
+      setKeyModes(prev => {
+        const next = { ...prev };
+        Object.keys(converted.fullRemaps).forEach(fromKey => {
+          const code = getXkbCodeForWaywallKey(fromKey);
+          if (code) next[code] = 'full';
+        });
+        Object.keys(converted.splitTriggers).forEach(code => {
+          next[code] = 'split';
+        });
+        return next;
+      });
       setActiveKey(null);
       setKeyEditor(null);
       setImportStatus(
@@ -479,7 +553,7 @@ const App = () => {
         )
       ),
       e(LayerSwitcher, { activeLayer, onChange: setActiveLayer }),
-      e(Keyboard, { keyRows, layout, remaps, triggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick: handleKeyClick }),
+      e(Keyboard, { keyRows, layout: activeLayout, remaps: activeRemaps, triggers: activeTriggers, activeKey, activeLayer, removeUsedDefaults, onKeyClick: handleKeyClick }),
       e(KeyEditor, {
         activeLayer,
         clearTrigger,
