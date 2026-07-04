@@ -10,7 +10,7 @@ const getTriggerRemaps = triggers => {
   Object.entries(triggers || {}).forEach(([targetCode, triggerKey]) => {
     const targetKey = XKB_CODE_TO_WAYWALL_KEY[targetCode] || targetCode;
     if (!triggerKey || triggerKey === targetKey) return;
-    triggerRemaps[triggerKey] = targetKey;
+    triggerRemaps[targetKey] = triggerKey;
   });
 
   return triggerRemaps;

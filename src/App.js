@@ -375,10 +375,10 @@ const App = () => {
     const splitTriggers = {};
 
     Object.entries(importedRemaps).forEach(([fromKey, toKey]) => {
-      const targetCode = getXkbCodeForWaywallKey(toKey);
+      const sourceCode = getXkbCodeForWaywallKey(fromKey);
 
-      if (targetCode && typeLayout[targetCode]) {
-        splitTriggers[targetCode] = fromKey;
+      if (sourceCode && typeLayout[sourceCode]) {
+        splitTriggers[sourceCode] = toKey;
       } else {
         fullRemaps[fromKey] = toKey;
       }
