@@ -43,7 +43,8 @@ const getStoredState = () => {
         ? parsed.activeLayer
         : undefined,
       keyboardLayout: KEY_LAYOUTS.some(item => item.id === parsed.keyboardLayout) ? parsed.keyboardLayout : undefined,
-      removeUsedDefaults: typeof parsed.removeUsedDefaults === 'boolean' ? parsed.removeUsedDefaults : undefined
+      removeUsedDefaults: typeof parsed.removeUsedDefaults === 'boolean' ? parsed.removeUsedDefaults : undefined,
+      remapsTakePriority: typeof parsed.remapsTakePriority === 'boolean' ? parsed.remapsTakePriority : undefined
     };
   } catch (error) {
     return {};
@@ -75,7 +76,9 @@ const App = () => {
   const [importStatus, setImportStatus] = React.useState('');
   const [keyEditor, setKeyEditor] = React.useState(null);
   const [removeUsedDefaults, setRemoveUsedDefaults] = React.useState(() => storedState.removeUsedDefaults ?? true);
+  const [remapsTakePriority, setRemapsTakePriority] = React.useState(() => storedState.remapsTakePriority ?? true);
   const [showToolscreenHelp, setShowToolscreenHelp] = React.useState(false);
+  const [showDownloadHelp, setShowDownloadHelp] = React.useState(false);
   const fileInputRef = React.useRef(null);
   const xkbFileInputRef = React.useRef(null);
   const remapsFileInputRef = React.useRef(null);
@@ -128,8 +131,13 @@ const App = () => {
   }, [keyModes, layout, remaps]);
 
   const xkbSnippet = React.useMemo(
-    () => createXkbSnippet(activeLayout, { keyRows, removeUsedDefaults }),
-    [activeLayout, keyRows, removeUsedDefaults]
+    () => createXkbSnippet(activeLayout, {
+      keyRows,
+      removeUsedDefaults,
+      remapsTakePriority,
+      triggers: activeTriggers
+    }),
+    [activeLayout, activeTriggers, keyRows, remapsTakePriority, removeUsedDefaults]
   );
 
   const remapsLua = React.useMemo(() => createRemapsLua(activeRemaps, activeTriggers), [activeRemaps, activeTriggers]);
@@ -142,9 +150,10 @@ const App = () => {
       keyModes,
       activeLayer,
       keyboardLayout,
-      removeUsedDefaults
+      removeUsedDefaults,
+      remapsTakePriority
     });
-  }, [activeLayer, keyboardLayout, keyModes, layout, remaps, removeUsedDefaults, triggers]);
+  }, [activeLayer, keyboardLayout, keyModes, layout, remaps, remapsTakePriority, removeUsedDefaults, triggers]);
 
   React.useEffect(() => {
     const handleKeyDown = event => {
@@ -152,6 +161,8 @@ const App = () => {
       editorDragRef.current = null;
       setKeyEditor(null);
       setActiveKey(null);
+      setShowToolscreenHelp(false);
+      setShowDownloadHelp(false);
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -523,6 +534,7 @@ const App = () => {
     anchor.download = filename;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+    setShowDownloadHelp(true);
   };
 
   return e(
@@ -585,6 +597,24 @@ const App = () => {
         )
       )
     ),
+    showDownloadHelp && e(
+      'div',
+      { className: 'modal-backdrop', onClick: () => setShowDownloadHelp(false) },
+      e(
+        'div',
+        { className: 'import-modal', role: 'dialog', 'aria-modal': 'true', onClick: event => event.stopPropagation() },
+        e('h2', null, 'Install downloaded files'),
+        e('p', null, 'Put mc in:'),
+        e('code', null, '~/.config/xkb/symbols/'),
+        e('p', null, 'Put remaps.lua in:'),
+        e('code', null, '~/.config/waywall/'),
+        e(
+          'div',
+          { className: 'modal-actions' },
+          e('button', { type: 'button', className: 'text-action text-action--strong', onClick: () => setShowDownloadHelp(false) }, 'Close')
+        )
+      )
+    ),
     e(
       'section',
       { className: 'content-section keyboard-section' },
@@ -636,7 +666,7 @@ const App = () => {
         'div',
         { className: 'section-heading' },
         e('h2', null, 'xkb_symbols export'),
-        e('span', { className: 'header-meta' }, '~/.xkb/symbols/custom')
+        e('span', { className: 'header-meta' }, '~/.config/xkb/symbols/mc')
       ),
       e(
         'div',
@@ -650,6 +680,16 @@ const App = () => {
             onChange: event => setRemoveUsedDefaults(event.target.checked)
           }),
           e('span', null, 'Remove used defaults')
+        ),
+        e(
+          'label',
+          { className: 'option-toggle' },
+          e('input', {
+            type: 'checkbox',
+            checked: remapsTakePriority,
+            onChange: event => setRemapsTakePriority(event.target.checked)
+          }),
+          e('span', null, 'Remaps before XKB')
         ),
         e(
           'button',
