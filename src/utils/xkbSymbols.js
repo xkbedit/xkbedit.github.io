@@ -89,6 +89,7 @@ const createXkbSnippet = (layout, options = {}) => {
     'default partial alphanumeric_keys',
     'xkb_symbols "basic" {',
     '    name[Group1]= "Custom Layout";',
+    '    include us',
     ''
   ];
 
